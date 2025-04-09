@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Webcam Background with Floating Images</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Playfair+Display&family=Press+Start+2P&display=swap" rel="stylesheet">
+
+
+<style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Webcam video background */
+        video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            min-width: 100%;
+            min-height: 100%;
+            z-index: -1; /* Behind the floating images */
+            object-fit: cover;
+        }
+
+        /* Floating images */
+        .floating-image {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+        }
+
+        /* Images over faces */
+        .face-image {
+            position: absolute;
+            z-index: 2; /* In front of the face box */
+            width: 300px;
+            height: 300px;
+        }
+        .chatbox {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 320px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 10px;
+  border-radius: 8px;
+  z-index: 10;
+  font-family: sans-serif;
+}
+
+.chatbox .messages {
+  max-height: 180px;
+  overflow-y: auto;
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.chatbox input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+    </style>
+<script src="./tracking/tracking-min.js"></script>
+<script src="./tracking/data/face-min.js"></script>
+</head>
+<body>
+<video autoplay="" id="webcam"></video> <!-- Webcam video -->
+<div id="container"></div> <!-- Container for floating images -->
+<div id="face-images"></div> <!-- Container for face images -->
+<div class="chatbox">
+<div class="messages" id="chatMessages"></div>
+<label for="botSelector" style="color:white;">Choose a bot:</label>
+<select id="botSelector" style="width: 100%; margin-bottom: 8px;">
+<option value="chatbot1">Chatbot One</option>
+<option value="chatbot2">Chatbot Two</option>
+<option value="chatbot3">Chatbot Three</option>
+<option value="chatbot4">Chatbot Four</option>
+</select>
+<input autocomplete="off" id="chatInput" placeholder="Type your message..." type="text"/>
+</div>
+<script>
+
+        // Cache for each bot’s replies
+const cachedBotReplies = {};
+
+// Map of bot names to their JSON files
+const botAPIEndpoints = {
+  chatbot1: 'https://mhr1235.github.io/gpt2_simple_data/chatbot1.json',
+  chatbot2: 'https://mhr1235.github.io/gpt2_simple_data/chatbot2.json',
+  chatbot3: 'https://mhr1235.github.io/gpt2_simple_data/chatbot4.json',
+  chatbot4: 'https://mhr1235.github.io/gpt2_simple_data/chatbot3.json'
+};
+
+const botStyles = {
+  chatbot1: { color: '#ffaa00', label: '🧝🏾‍♂️ SwardspeakBot', font:  "'Press Start 2P', monospace", trigger: 'sword speak bot' },
+  chatbot2: { color: '#ccff66 ', label: '👨‍🦰 LeatherBot', font: "'Anton', sans-serif"
+, trigger: 'leather bot' },
+  chatbot3: { color: '#ff66cc', label: '💃🏽 ShowgirlBot', font: "'Playfair Display', serif", trigger: 'showgirlbot' },
+chatbot4: { color: '#66ccff', label: '👴🏽 ManongBot', font: 'Lucida Console, monospace', trigger: 'chatbot 4' },
+};
+
+
+
+        class FloatingImageAnimator {
+            constructor(_floating_images, _container, _offset_x, _offset_y, _max_width, _max_height) {
+                this._floating_images = _floating_images;
+                this._container = _container;
+                this._offset_x = _offset_x;
+                this._offset_y = _offset_y;
+                this._max_width = _max_width;
+                this._max_height = _max_height;
+                this._has_randomized = false;  // Ensure randomization happens only once when reappearing
+            }
+
+            _animate_images() {
+                this._floating_images.forEach(img_data => {
+                    img_data.x += img_data.speedX;
+                    img_data.y += img_data.speedY;
+
+                    if (img_data.x <= this._offset_x) {
+                        img_data.x = this._offset_x + 1;
+                        img_data.speedX *= -1;
+                    }
+                    if (img_data.x >= (this._offset_x + this._max_width - img_data.element.offsetWidth)) {
+                        img_data.x = this._offset_x + this._max_width - img_data.element.offsetWidth - 1;
+                        img_data.speedX *= -1;
+                    }
+                    if (img_data.y <= this._offset_y) {
+                        img_data.y = this._offset_y + 1;
+                        img_data.speedY *= -1;
+                    }
+                    if (img_data.y >= (this._offset_y + this._max_height - img_data.element.offsetHeight)) {
+                        img_data.y = this._offset_y + this._max_height - img_data.element.offsetHeight - 1;
+                        img_data.speedY *= -1;
+                    }
+
+                    img_data.element.style.left = `${img_data.x}px`;
+                    img_data.element.style.top = `${img_data.y}px`;
+                });
+
+                requestAnimationFrame(this._animate_images.bind(this));
+            }
+
+            _show_images() {
+                this._floating_images.forEach(img_data => {
+                    img_data.element.style.display = 'block';
+                });
+            }
+
+            _hide_images() {
+                this._floating_images.forEach(img_data => {
+                    img_data.element.style.display = 'none';
+                });
+            }
+
+            _reset_image_positions() {
+                if (!this._has_randomized) {
+                    this._floating_images.forEach(img_data => {
+                        img_data.x = this._offset_x + Math.random() * this._max_width;
+                        img_data.y = this._offset_y + Math.random() * this._max_height;
+                        img_data.element.style.left = `${img_data.x}px`;
+                        img_data.element.style.top = `${img_data.y}px`;
+                    });
+                    this._has_randomized = true;  // Ensure it randomizes only once
+                }
+                this._show_images();
+            }
+        }
+
+        class FaceImageTracker {
+            constructor(_video_element, _face_images_container, _images) {
+                this._video_element = _video_element;
+                this._face_images_container = _face_images_container;
+                this._images = _images;
+                this._face_assignments = {};  // Track face assignments
+                this._face_id_counter = 0;
+                this._max_lost_time = 3000;  // 3 seconds for a face to be considered lost
+                this._used_images = new Set();  // Track images that are currently in use
+                this._position_tolerance = 50;  // Proximity tolerance
+                this._size_tolerance = 30;  // Size tolerance
+            }
+
+            _match_existing_face(face) {
+                const now = Date.now();
+                for (let face_id in this._face_assignments) {
+                    const assignment = this._face_assignments[face_id];
+                    const time_since_last_seen = now - assignment.timestamp;
+
+                    if (time_since_last_seen < this._max_lost_time &&
+                        Math.abs(face.x - assignment.x) < this._position_tolerance &&
+                        Math.abs(face.y - assignment.y) < this._position_tolerance &&
+                        Math.abs(face.width - assignment.width) < this._size_tolerance &&
+                        Math.abs(face.height - assignment.height) < this._size_tolerance) {
+
+                        assignment.timestamp = now;
+                        assignment.x = face.x;
+                        assignment.y = face.y;
+                        assignment.width = face.width;
+                        assignment.height = face.height;
+                        return face_id;
+                    }
+                }
+                return null;  // No match found
+            }
+
+            _get_available_image() {
+                for (let i = 0; i < this._images.length; i++) {
+                    if (!this._used_images.has(i)) {
+                        this._used_images.add(i);
+                        return i;
+                    }
+                }
+                return null;  // No available image
+            }
+
+            _free_image(image_index) {
+                this._used_images.delete(image_index);
+            }
+
+            assign_images_to_faces(faces) {
+                const now = Date.now();
+
+                faces.forEach(face => {
+                    let face_id = this._match_existing_face(face);
+
+                    if (face_id === null) {
+                        const image_index = this._get_available_image();
+                        if (image_index === null) return;
+
+                        face_id = this._face_id_counter++;
+                        this._face_assignments[face_id] = {
+                            x: face.x,
+                            y: face.y,
+                            width: face.width,
+                            height: face.height,
+                            timestamp: now,
+                            image_index: image_index
+                        };
+                    }
+
+                    const assignment = this._face_assignments[face_id];
+                    const img_src = this._images[assignment.image_index];
+
+                    let face_image = document.getElementById(`face-img-${face_id}`);
+                    if (!face_image) {
+                        face_image = document.createElement('img');
+                        
+    const selectedBot = document.getElementById('botSelector').value;
+    const botIndexMap = {
+      chatbot1: 0,
+      chatbot2: 1,
+      chatbot3: 2
+    };
+    const indexToTurnOn = botIndexMap[selectedBot];
+    face_image.src = (assignment.image_index === indexToTurnOn && _images_on[assignment.image_index]) 
+      ? _images_on[assignment.image_index] 
+      : img_src;
+    
+                        face_image.classList.add('face-image');
+    face_image.dataset.index = assignment.image_index;
+                        face_image.id = `face-img-${face_id}`;
+                        this._face_images_container.appendChild(face_image);
+                    }
+                    const scale = 2.0; // adjust this to 1.3, 1.6, 2.0, etc.
+
+
+                   face_image.style.width = `${face.width * scale}px`;
+face_image.style.height = `${face.height * scale}px`;
+
+face_image.style.left = `${_video_element.offsetLeft + face.x - (face.width * (scale - 1) / 2)}px`;
+face_image.style.top = `${_video_element.offsetTop + face.y - (face.height * (scale - 1) / 2)}px`;
+                });
+
+                // Cleanup old faces and free images
+                for (let face_id in this._face_assignments) {
+                    const assignment = this._face_assignments[face_id];
+                    if (now - assignment.timestamp > this._max_lost_time) {
+                        this._free_image(assignment.image_index);
+                        delete this._face_assignments[face_id];
+
+                        const face_image = document.getElementById(`face-img-${face_id}`);
+                        if (face_image) face_image.remove();
+                    }
+                }
+            }
+
+            _hide_face_images() {
+                // Clear all existing face images
+                while (this._face_images_container.firstChild) {
+                    this._face_images_container.removeChild(this._face_images_container.firstChild);
+                }
+            }
+        }
+
+        // Main execution
+        const _video_element = document.getElementById('webcam');
+        const _face_images_container = document.getElementById('face-images');
+        const _floating_images = [];
+        //const _images = ['./bots_gif/swardspeak-off.gif', './bots_gif/leather-off.gif', './bots_gif/showgirl-off.gif', 'orly.gif'];
+         const _images = ['./bots_gif/swardspeak-off.gif', './bots_gif/leather-off.gif', './bots_gif/showgirl-off.gif'];
+        const _images_on = [
+  './bots_gif/swardspeak-on.gif',
+  './bots_gif/leather-on.gif',
+  './bots_gif/showgirl-on.gif' // still using placeholder
+];
+
+
+        const _container = document.getElementById('container');
+        const _right_half_width = window.innerWidth / 2;
+        //const _max_width = _right_half_width * 0.99;
+        const _max_width = window.innerWidth * 0.9;
+
+        //const _max_height = window.innerHeight * 0.5;
+        const _max_height = window.innerHeight * 0.8;
+
+        const _shift_x = window.innerWidth * 0.1;
+        //const _offset_x = (window.innerWidth / 2) + _shift_x;
+        const _offset_x = window.innerWidth * 0.05;
+        //const _offset_y = window.innerHeight * 0.3;
+        const _offset_y = window.innerHeight * 0.1;
+
+
+        // Initialize floating images
+        _images.forEach((image_src, i) => {
+
+       // _images.forEach(image_src => {
+              if (i === 3) return; // ⛔ Skip chatbot4 image (index 3 = 4th image)
+
+            const img = document.createElement('img');
+            img.src = image_src;
+            img.classList.add('floating-image');
+
+            // const posX = _offset_x + Math.random() * _max_width;
+            // const posY = _offset_y + Math.random() * _max_height;
+
+            const jitter = i * 60; // space them out slightly based on index
+const posX = _offset_x + Math.random() * (_max_width - 220) + jitter;
+const posY = _offset_y + Math.random() * (_max_height - 220) + jitter;
+
+            const speedX = (Math.random() * 2 - 1) * 1;
+            const speedY = (Math.random() * 2 - 1) * 1;
+
+            img.style.left = `${posX}px`;
+            img.style.top = `${posY}px`;
+
+            _container.appendChild(img);
+
+            _floating_images.push({ element: img, x: posX, y: posY, speedX: speedX, speedY: speedY, randomized: false });
+        });
+
+        const _floating_image_animator = new FloatingImageAnimator(_floating_images, _container, _offset_x, _offset_y, _max_width, _max_height);
+        _floating_image_animator._animate_images();
+
+        const _face_tracker = new FaceImageTracker(_video_element, _face_images_container, _images);
+
+        const tracker = new tracking.ObjectTracker('face');
+        tracker.setInitialScale(4);
+        tracker.setStepSize(2);
+        tracker.setEdgesDensity(0.1);
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                _video_element.srcObject = stream;
+                tracking.track(_video_element, tracker);
+            })
+            .catch(err => console.error("Error accessing webcam: " + err));
+
+        // Handle face tracking events
+        tracker.on('track', event => {
+            console.log(`Faces detected: ${event.data.length}`);
+
+            if (event.data.length > 0) {
+                // Hide floating images when faces are detected
+                _floating_image_animator._hide_images();
+                _floating_image_animator._has_randomized = false;  // Reset for the next reappearance
+                _face_tracker.assign_images_to_faces(event.data);
+            } else {
+                // No faces detected, hide face images and show floating images after 3 seconds
+                _face_tracker._hide_face_images();
+                setTimeout(() => {
+                    _floating_image_animator._reset_image_positions();  // Only randomize once on reappearance
+                }, 3000);
+            }
+        });
+
+
+
+        document.getElementById('chatInput').addEventListener('keypress', async function(e) {
+  if (e.key === 'Enter' && this.value.trim() !== '') {
+    const input = this.value.trim();
+    const botKey = document.getElementById('botSelector').value;
+    const chatMessages = document.getElementById('chatMessages');
+
+    // Display user message
+    const userMsg = document.createElement('div');
+    userMsg.textContent = "You: " + input;
+    userMsg.style.color = '#00ffd5';
+    chatMessages.appendChild(userMsg);
+    this.value = '';
+
+    try {
+      // Load bot replies if not already cached
+      if (!cachedBotReplies[botKey]) {
+        const url = botAPIEndpoints[botKey];
+        const res = await fetch(url);
+        const json = await res.json();
+        cachedBotReplies[botKey] = json;
+      }
+
+      const replies = cachedBotReplies[botKey].texts;
+
+      // Check for remaining replies
+      if (!replies || replies.length === 0) {
+        const outMsg = document.createElement('div');
+        outMsg.textContent = `${botKey} has no more replies.`;
+        outMsg.style.color = 'gray';
+        chatMessages.appendChild(outMsg);
+        return;
+      }
+
+      // Pick and remove a random reply
+      const index = Math.floor(Math.random() * replies.length);
+      const randomReply = replies.splice(index, 1)[0];
+
+      const botStyle = botStyles[botKey] || { color: '#ffffff', label: botKey };
+
+      // Create "typing..." placeholder
+      const typingMsg = document.createElement('div');
+      typingMsg.textContent = `${botStyle.label} is typing...`;
+      typingMsg.style.color = 'gray';
+      chatMessages.appendChild(typingMsg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      // Random delay (400–1200ms)
+      const delay = Math.floor(Math.random() * 800) + 400;
+
+      setTimeout(() => {
+        typingMsg.textContent = `${botStyle.label}: ${randomReply}`;
+        typingMsg.style.color = botStyle.color;
+        typingMsg.style.fontFamily = botStyle.font;
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }, delay);
+
+    } catch (err) {
+      const errMsg = document.createElement('div');
+      errMsg.textContent = "Error fetching reply from " + botKey;
+      errMsg.style.color = 'red';
+      chatMessages.appendChild(errMsg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      console.error(err);
+    }
+  }
+});
+
+        
+document.getElementById('botSelector').addEventListener('change', (e) => {
+  const selectedBot = e.target.value;
+  updateFloatingBotGif(selectedBot);  // Update floating images
+
+  const faceImages = document.querySelectorAll('.face-image');
+  const botIndexMap = {
+    chatbot1: 0,
+    chatbot2: 1,
+    chatbot3: 2
+  };
+  const indexToTurnOn = botIndexMap[selectedBot];
+
+  faceImages.forEach((face_image) => {
+    const index = parseInt(face_image.dataset.index);
+    const imgSrc = _images[index];
+    const newSrc = (index === indexToTurnOn && _images_on[index]) ? _images_on[index] : imgSrc;
+    face_image.src = newSrc;
+  });
+});
+
+
+// Voice recognition setup
+
+document.getElementById('botSelector').addEventListener('change', (e) => {
+  const selectedBot = e.target.value;
+  updateFloatingBotGif(selectedBot);  // Update floating images
+
+  const faceImages = document.querySelectorAll('.face-image');
+  const botIndexMap = {
+    chatbot1: 0,
+    chatbot2: 1,
+    chatbot3: 2
+  };
+  const indexToTurnOn = botIndexMap[selectedBot];
+
+  faceImages.forEach((face_image) => {
+    const index = parseInt(face_image.dataset.index);
+    const imgSrc = _images[index];
+    const newSrc = (index === indexToTurnOn && _images_on[index]) ? _images_on[index] : imgSrc;
+    face_image.src = newSrc;
+  });
+});
+
+
+// Voice recognition setup
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = new SpeechRecognition();
+recognition.lang = 'en-US';
+recognition.continuous = true;
+recognition.interimResults = false;
+
+let isListening = false;
+
+// Voice toggle button
+const voiceBtn = document.createElement('button');
+voiceBtn.textContent = '🎙️ Talk to Bot';
+voiceBtn.style.position = 'fixed';
+voiceBtn.style.bottom = '20px';
+voiceBtn.style.right = '20px';
+voiceBtn.style.padding = '10px';
+voiceBtn.style.zIndex = '20';
+document.body.appendChild(voiceBtn);
+
+// Toggle voice recognition on button click
+voiceBtn.onclick = () => {
+  if (!isListening) {
+    recognition.start();
+    isListening = true;
+    voiceBtn.textContent = '🛑 Stop Listening';
+  } else {
+    recognition.stop();
+    isListening = false;
+    voiceBtn.textContent = '🎙️ Talk to Bot';
+  }
+};
+
+// Voice recognition result logic
+recognition.onresult = async (event) => {
+  const transcript = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+  const chatInput = document.getElementById('chatInput');
+  const botSelector = document.getElementById('botSelector');
+
+  const botKeys = Object.keys(botStyles).filter(key => key !== 'chatbot4');
+  let matchedBot = botKeys.find(botKey => {
+    const trigger = botStyles[botKey].trigger.toLowerCase();
+    return transcript.includes(trigger);
+  });
+
+  if (matchedBot) {
+    botSelector.value = matchedBot;
+    updateFloatingBotGif(matchedBot);
+
+    const chatMessages = document.getElementById('chatMessages');
+    const msg = document.createElement('div');
+    msg.textContent = `🎤 Voice selected: ${botStyles[matchedBot].label}`;
+    msg.style.color = 'orange';
+    chatMessages.appendChild(msg);
+    return;
+  }
+
+  // Otherwise treat it like a message
+  chatInput.value = transcript;
+  const e = new KeyboardEvent('keypress', { key: 'Enter' });
+  chatInput.dispatchEvent(e);
+};
+
+// Handle errors
+recognition.onerror = (event) => {
+  console.error('Voice recognition error:', event.error);
+  isListening = false;
+  voiceBtn.textContent = '🎙️ Talk to Bot';
+};
+
+// Stop tracking when user stops speaking
+recognition.onend = () => {
+  if (isListening) {
+    // Automatically restart only if still toggled on
+    recognition.start();
+  }
+};
+
+function updateFloatingBotGif(botKey) {
+  const botIndexMap = {
+    chatbot1: 0,
+    chatbot2: 1,
+    chatbot3: 2
+    // chatbot4 can be left out since it has no 'on' gif
+  };
+
+  const indexToTurnOn = botIndexMap[botKey];
+
+  _floating_images.forEach((imgObj, i) => {
+    if (i === indexToTurnOn && _images_on[i]) {
+      imgObj.element.src = _images_on[i];
+    } else {
+      imgObj.element.src = _images[i];
+    }
+  });
+}
+
+
+
+
+
+
+
+
+
+    </script>
+
+<script>
+  // Random bot selection on load
+  const botKeys = Object.keys(botStyles).filter(key => key !== 'chatbot4');
+  const randomBot = botKeys[Math.floor(Math.random() * botKeys.length)];
+
+  // Set dropdown and floating image
+  window.addEventListener('DOMContentLoaded', () => {
+    const botSelector = document.getElementById('botSelector');
+    botSelector.value = randomBot;
+    updateFloatingBotGif(randomBot);
+
+    // Optional: log or show a message
+    const chatMessages = document.getElementById('chatMessages');
+    const msg = document.createElement('div');
+    msg.textContent = `🤖 Randomly selected: ${botStyles[randomBot].label}`;
+    msg.style.color = 'yellow';
+    chatMessages.appendChild(msg);
+  });
+</script>
+</body>
+</html>
