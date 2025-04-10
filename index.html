@@ -383,7 +383,7 @@ const posY = _offset_y + Math.random() * (_max_height - 220) + jitter;
                   _isTrackingActive = false;
                   event.data.forEach(function(rect) {
                     const videoWidth = _video_element.width || window.innerWidth;
-                    const rightThreshold = videoWidth * 0.;//
+                    //const rightThreshold = videoWidth * 0.;//
                     const rightThreshold = videoWidth * 0.3; // Only track faces in right 70%
 
                     if (rect.x > rightThreshold) {
