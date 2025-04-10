@@ -31,16 +31,16 @@
         /* Floating images */
         .floating-image {
             position: absolute;
-            width: 300px;
-            height: 300px;
+            width: 450px;
+            height: 450px;
         }
 
         /* Images over faces */
         .face-image {
             position: absolute;
             z-index: 2; /* In front of the face box */
-            width: 300px;
-            height: 300px;
+            width: 450px;
+            height: 450px;
         }
         .chatbox {
   position: fixed;
@@ -75,6 +75,7 @@
 <script src="./tracking/data/face-min.js"></script>
 </head>
 <body>
+  <div style="position:fixed;top:0;left:30vw;width:90vw;height:100vh;background:rgba(0,255,0,0.08);pointer-events:none;z-index:1;"></div>
 <video autoplay="" id="webcam"></video> <!-- Webcam video -->
 <div id="container"></div> <!-- Container for floating images -->
 <div id="face-images"></div> <!-- Container for face images -->
@@ -125,7 +126,7 @@ chatbot4: { color: '#66ccff', label: '👴🏽 ManongBot', font: 'Lucida Console
 
             _animate_images() {
                 this._floating_images.forEach(img_data => {
-                    const speedMultiplier = _isWebcamActive ? 5.5 : 1.0;
+                    const speedMultiplier = _isWebcamActive ? 3.5 : 1.0;
                     img_data.x += img_data.speedX * speedMultiplier;
                     img_data.y += img_data.speedY * speedMultiplier;
                     img_data.y += img_data.speedY;
@@ -323,16 +324,16 @@ face_image.style.top = `${_video_element.offsetTop + face.y - (face.height * (sc
         const _container = document.getElementById('container');
         const _right_half_width = window.innerWidth / 2;
         //const _max_width = _right_half_width * 0.99;
-        const _max_width = window.innerWidth * 0.6;
+        const _max_width = window.innerWidth * 1.01;
 
         //const _max_height = window.innerHeight * 0.5;
-        const _max_height = window.innerHeight * 0.6;
+        const _max_height = window.innerHeight * 0.76;
 
         const _shift_x = window.innerWidth * 0.1;
         //const _offset_x = (window.innerWidth / 2) + _shift_x;
-        const _offset_x = window.innerWidth * 0.35;
+        const _offset_x = window.innerWidth * 0.2;
         //const _offset_y = window.innerHeight * 0.3;
-        const _offset_y = window.innerHeight * 0.0003;
+        const _offset_y = window.innerHeight * 0.000003;
 
 
         // Initialize floating images
@@ -378,6 +379,16 @@ const posY = _offset_y + Math.random() * (_max_height - 220) + jitter;
                 _video_element.srcObject = stream;
                 _isWebcamActive = true;
                 tracking.track(_video_element, tracker);
+                tracker.on('track', function(event) {
+                  _isTrackingActive = false;
+                  event.data.forEach(function(rect) {
+                    const videoWidth = _video_element.width || window.innerWidth;
+                    const rightThreshold = videoWidth * 0.;
+                    if (rect.x > rightThreshold) {
+                      _isTrackingActive = true;
+                    }
+                  });
+                });
             })
             .catch(err => console.error("Error accessing webcam: " + err));
 
@@ -604,8 +615,10 @@ function updateFloatingBotGif(botKey) {
   _floating_images.forEach((imgObj, i) => {
     if (i === indexToTurnOn && _images_on[i]) {
       imgObj.element.src = _images_on[i];
+      imgObj.element.style.zIndex = '5'; // bring to front
     } else {
       imgObj.element.src = _images[i];
+      imgObj.element.style.zIndex = '2'; // send to back
     }
   });
 }
