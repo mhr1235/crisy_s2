@@ -125,7 +125,9 @@ chatbot4: { color: '#66ccff', label: '👴🏽 ManongBot', font: 'Lucida Console
 
             _animate_images() {
                 this._floating_images.forEach(img_data => {
-                    img_data.x += img_data.speedX;
+                    const speedMultiplier = _isWebcamActive ? 5.5 : 1.0;
+                    img_data.x += img_data.speedX * speedMultiplier;
+                    img_data.y += img_data.speedY * speedMultiplier;
                     img_data.y += img_data.speedY;
 
                     if (img_data.x <= this._offset_x) {
@@ -303,7 +305,9 @@ face_image.style.top = `${_video_element.offsetTop + face.y - (face.height * (sc
             }
         }
 
-        // Main execution
+        let _isWebcamActive = false;
+
+// Main execution
         const _video_element = document.getElementById('webcam');
         const _face_images_container = document.getElementById('face-images');
         const _floating_images = [];
@@ -319,16 +323,16 @@ face_image.style.top = `${_video_element.offsetTop + face.y - (face.height * (sc
         const _container = document.getElementById('container');
         const _right_half_width = window.innerWidth / 2;
         //const _max_width = _right_half_width * 0.99;
-        const _max_width = window.innerWidth * 0.35;
+        const _max_width = window.innerWidth * 0.6;
 
         //const _max_height = window.innerHeight * 0.5;
-        const _max_height = window.innerHeight * 0.4;
+        const _max_height = window.innerHeight * 0.6;
 
         const _shift_x = window.innerWidth * 0.1;
         //const _offset_x = (window.innerWidth / 2) + _shift_x;
-        const _offset_x = window.innerWidth * 0.6;
+        const _offset_x = window.innerWidth * 0.35;
         //const _offset_y = window.innerHeight * 0.3;
-        const _offset_y = window.innerHeight * 0.3;
+        const _offset_y = window.innerHeight * 0.0003;
 
 
         // Initialize floating images
@@ -372,6 +376,7 @@ const posY = _offset_y + Math.random() * (_max_height - 220) + jitter;
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 _video_element.srcObject = stream;
+                _isWebcamActive = true;
                 tracking.track(_video_element, tracker);
             })
             .catch(err => console.error("Error accessing webcam: " + err));
