@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Webcam Background with Floating Images</title>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Playfair+Display&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./main.js"></script>
+  <script src="./tracking/tracking-min.js"></script>
+  <script src="./tracking/data/face-min.js"></script>
+</head>
+<body>
+  <div style="position:fixed;top:0;left:30vw;width:90vw;height:100vh;background:rgba(0,255,0,0.08);pointer-events:none;z-index:1;"></div>
+  <video autoplay id="webcam"></video>
+  <div id="container"></div>
+  <div id="face-images"></div>
+  <div class="chatbox">
+    <div class="messages" id="chatMessages"></div>
+    <label for="botSelector" style="color:white;">Choose a bot:</label>
+    <select id="botSelector" style="width: 100%; margin-bottom: 8px;">
+      <option value="chatbot1">Chatbot One</option>
+      <option value="chatbot2">Chatbot Two</option>
+      <option value="chatbot3">Chatbot Three</option>
+      <option value="chatbot4">Chatbot Four</option>
+    </select>
+    <input autocomplete="off" id="chatInput" placeholder="Type your message..." type="text"/>
+  </div>
+</body>
+</html>
