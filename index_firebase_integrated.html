@@ -73,14 +73,7 @@
 }
 
     </style>
-<script type="module">
-  import { sendToThingChat } from "./crisyToThings.js";
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-  //import { sendToThingChat } from './crisyToThings.js';
 
-  // use sendToThingChat(...) in your bot logic
-</script>
 
 <script src="./tracking/tracking-min.js"></script>
 <script src="./tracking/data/face-min.js"></script>
@@ -101,7 +94,16 @@
 </select>
 <input autocomplete="off" id="chatInput" placeholder="Type your message..." type="text"/>
 </div>
-<script>
+
+
+<script type="module">
+  import { sendToThingChat } from "./crisyToThings.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+  import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+  //import { sendToThingChat } from './crisyToThings.js';
+
+  // use sendToThingChat(...) in your bot logic
+
 
         // Cache for each bot’s replies
 const cachedBotReplies = {};
@@ -642,15 +644,7 @@ function updateFloatingBotGif(botKey) {
 
 
 
-
-
-
-
-
-    </script>
-
-<script>
-  // Random bot selection on load
+// Random bot selection on load
   const botKeys = Object.keys(botStyles).filter(key => key !== 'chatbot4');
   const randomBot = botKeys[Math.floor(Math.random() * botKeys.length)];
 
@@ -667,6 +661,11 @@ function updateFloatingBotGif(botKey) {
     msg.style.color = 'yellow';
     chatMessages.appendChild(msg);
   });
-</script>
+
+
+
+
+    </script>
+
 </body>
 </html>
