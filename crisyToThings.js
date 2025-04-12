@@ -1,11 +1,8 @@
 
-// crisyToThings.js
-//import { initializeApp } from "firebase/app";
-//import { getFirestore, collection, addDoc } from "firebase/firestore";
 
+// crisyToThings.js (CDN-friendly for GitHub Pages)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-
 
 // Firebase config for "is-this-thing-on"
 const firebaseConfig = {
