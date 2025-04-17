@@ -429,7 +429,7 @@ const scanZoneRight = window.innerWidth;
             .catch(err => console.error("Error accessing webcam: " + err));
 
         // Handle face tracking events
-        tracker.on('track', event => {
+     /*   tracker.on('track', event => {
             console.log(`Faces detected: ${event.data.length}`);
 
             if (event.data.length > 0) {
@@ -444,7 +444,7 @@ const scanZoneRight = window.innerWidth;
                     _floating_image_animator._reset_image_positions();  // Only randomize once on reappearance
                 }, 3000);
             }
-        });
+        });*/
 
 
 
