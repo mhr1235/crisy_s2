@@ -19,16 +19,16 @@
 
         /* Webcam video background */
         video {
-            position: fixed;
-            top: 0;
-            left: 0;
-            min-width: 100%;
-            min-height: 100%;
-            z-index: -1; /* Behind the floating images */
-            object-fit: contain;
-/*            filter: grayscale(100%);*/
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain;  /* Or 'contain' if you want to show the whole frame */
+  aspect-ratio: 16 / 9;  /* Optional: helps maintain visual consistency */
+  z-index: -1;
+}
 
-        }
 
         /* Floating images */
         .floating-image {
@@ -84,7 +84,9 @@
 <div id="container"></div> <!-- Container for floating images -->
 <div id="face-images"></div> <!-- Container for face images -->
 <div class="chatbox">
-<div class="messages" id="chatMessages"></div>
+<!-- <div class="messages" id="chatMessages"></div> -->
+<div id="chatMessages" style="display: none;"></div>
+
 <label for="botSelector" style="color:white;">Choose a bot:</label>
 <select id="botSelector" style="width: 100%; margin-bottom: 8px;">
 <option value="chatbot1">Chatbot One</option>
@@ -92,7 +94,14 @@
 <option value="chatbot3">Chatbot Three</option>
 <option value="chatbot4">Chatbot Four</option>
 </select>
-<input autocomplete="off" id="chatInput" placeholder="Type your message..." type="text"/>
+<!-- <input autocomplete="off" id="chatInput" placeholder="Type your message..." type="text"/>  -->
+<input
+  autocomplete="off"
+  id="chatInput"
+  placeholder="Type your message..."
+  type="text"
+  style="opacity: 0; position: absolute; pointer-events: none; height: 0; width: 0;"
+/>
 </div>
 
 
@@ -339,16 +348,19 @@ face_image.style.top = `${_video_element.offsetTop + face.y - (face.height * (sc
         const _container = document.getElementById('container');
         const _right_half_width = window.innerWidth / 2;
         //const _max_width = _right_half_width * 0.99;
-        const _max_width = window.innerWidth * 1.01;
+        //const _max_width = window.innerWidth * 1.01;
 
         //const _max_height = window.innerHeight * 0.5;
         const _max_height = window.innerHeight * 0.76;
 
         const _shift_x = window.innerWidth * 0.1;
         //const _offset_x = (window.innerWidth / 2) + _shift_x;
-        const _offset_x = window.innerWidth * 0.2;
+        //const _offset_x = window.innerWidth * 0.2;
         //const _offset_y = window.innerHeight * 0.3;
         const _offset_y = window.innerHeight * 0.000003;
+
+        const _offset_x = window.innerWidth * 0.5; // start at 50vw
+const _max_width = window.innerWidth * 0.5; // stay within 50vw
 
 
         // Initialize floating images
@@ -382,6 +394,10 @@ const posY = _offset_y + Math.random() * (_max_height - 220) + jitter;
         const _floating_image_animator = new FloatingImageAnimator(_floating_images, _container, _offset_x, _offset_y, _max_width, _max_height);
         _floating_image_animator._animate_images();
 
+
+// Optional: console log instead of DOM message
+
+
         const _face_tracker = new FaceImageTracker(_video_element, _face_images_container, _images);
 
         const tracker = new tracking.ObjectTracker('face');
@@ -389,7 +405,52 @@ const posY = _offset_y + Math.random() * (_max_height - 220) + jitter;
         tracker.setStepSize(2);
         tracker.setEdgesDensity(0.1);
 
-        navigator.mediaDevices.getUserMedia({ video: true })
+        navigator.mediaDevices.getUserMedia({
+  video: {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    facingMode: 'user' // optional: ensures front-facing webcam on laptops
+  }
+})
+.then(stream => {
+  _video_element.srcObject = stream;
+  _isWebcamActive = true;
+  tracking.track(_video_element, tracker);
+
+  const scanZoneLeft = window.innerWidth * 0.5;
+  const scanZoneRight = window.innerWidth;
+
+  tracker.on('track', function(event) {
+    _isTrackingActive = false;
+
+    const filteredFaces = event.data.filter(function(rect) {
+      const faceCenterX = rect.x + rect.width / 2;
+      return faceCenterX >= scanZoneLeft && faceCenterX <= scanZoneRight;
+    });
+
+  console.log("Total faces detected:", event.data.length);
+  console.log("Faces in scan zone:", filteredFaces.length);
+
+    if (filteredFaces.length > 0) {
+      _isTrackingActive = true;
+    }
+
+    if (_isTrackingActive) {
+      _floating_image_animator._hide_images();
+      _floating_image_animator._has_randomized = false;
+      _face_tracker.assign_images_to_faces(filteredFaces);
+    } else {
+      _face_tracker._hide_face_images();
+      setTimeout(() => {
+        _floating_image_animator._reset_image_positions();
+      }, 3000);
+    }
+  });
+})
+//.catch(err => console.error("Error accessing webcam: ", err));
+
+
+        /*navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 _video_element.srcObject = stream;
                 _isWebcamActive = true;
@@ -425,7 +486,7 @@ const scanZoneRight = window.innerWidth;
 });
 
                 
-            })
+            })*/
             .catch(err => console.error("Error accessing webcam: " + err));
 
         // Handle face tracking events
@@ -669,8 +730,11 @@ function updateFloatingBotGif(botKey) {
   const botKeys = Object.keys(botStyles).filter(key => key !== 'chatbot4');
   const randomBot = botKeys[Math.floor(Math.random() * botKeys.length)];
 
+const botSelector = document.getElementById('botSelector');
+botSelector.value = randomBot;
+updateFloatingBotGif(randomBot);
   // Set dropdown and floating image
-  window.addEventListener('DOMContentLoaded', () => {
+  /*window.addEventListener('DOMContentLoaded', () => {
     const botSelector = document.getElementById('botSelector');
     botSelector.value = randomBot;
     updateFloatingBotGif(randomBot);
@@ -681,7 +745,7 @@ function updateFloatingBotGif(botKey) {
     msg.textContent = `🤖 Randomly selected: ${botStyles[randomBot].label}`;
     msg.style.color = 'yellow';
     chatMessages.appendChild(msg);
-  });
+  });*/
 
 
 
